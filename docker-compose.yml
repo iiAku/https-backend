@@ -11,12 +11,15 @@ services:
       - "--entrypoints.https.address=:443"
       - "--entrypoints.postgresql.address=:5432" # PostgreSQL entry point
       - "--entrypoints.redis.address=:6379" # Redis entry point
-      - "--certificatesresolvers.mydnschallenge.acme.dnschallenge=true"
-      - "--certificatesresolvers.mydnschallenge.acme.dnschallenge.provider=digitalocean"
-      - "--certificatesresolvers.mydnschallenge.acme.email=${ACME_EMAIL}"
-      - "--certificatesresolvers.mydnschallenge.acme.storage=/acme.json"
+      - "--certificatesresolvers.letsencrypt.acme.email=${CF_API_EMAIL}"
+      - "--certificatesresolvers.letsencrypt.acme.storage=/letsencrypt/acme.json"
+      - "--certificatesresolvers.letsencrypt.acme.tlschallenge=true"
+      - "--certificatesresolvers.letsencrypt.acme.dnschallenge.provider=cloudflare"
+      - "--certificatesresolvers.letsencrypt.acme.dnschallenge.delaybeforecheck=0"
+      - "--certificatesresolvers.letsencrypt.acme.dnschallenge.resolvers=1.1.1.1:53,1.0.0.1:53"
     environment:
-      - DO_AUTH_TOKEN=${DO_AUTH_TOKEN}
+      - CF_API_EMAIL=${CF_API_EMAIL}
+      - CF_API_KEY=${CF_API_KEY}
     ports:
       - "80:80"
       - "443:443"

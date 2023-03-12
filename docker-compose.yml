@@ -1,5 +1,3 @@
-version: "3.7"
-
 services:
   proxy:
     image: traefik:latest
@@ -12,11 +10,12 @@ services:
       - "--entrypoints.postgresql.address=:5432" # PostgreSQL entry point
       - "--entrypoints.redis.address=:6379" # Redis entry point
       - "--certificatesresolvers.mydnschallenge.acme.dnschallenge=true"
-      - "--certificatesresolvers.mydnschallenge.acme.dnschallenge.provider=digitalocean"
-      - "--certificatesresolvers.mydnschallenge.acme.email=${ACME_EMAIL}"
+      - "--certificatesresolvers.mydnschallenge.acme.dnschallenge.provider=cloudflare"
+      - "--certificatesresolvers.mydnschallenge.acme.email=${CF_API_EMAIL}"
       - "--certificatesresolvers.mydnschallenge.acme.storage=/acme.json"
     environment:
-      - DO_AUTH_TOKEN=${DO_AUTH_TOKEN}
+      - CF_API_EMAIL=${CF_API_EMAIL}
+      - CF_API_KEY=${CF_API_KEY}
     ports:
       - "80:80"
       - "443:443"
@@ -26,3 +25,43 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - ./acme/acme.json:/acme.json
+
+  postgresql:
+      image: bitnami/postgresql:latest
+      restart: always
+      environment:
+        POSTGRES_USER: shopir
+        POSTGRES_PASSWORD: shopir
+        POSTGRES_DB: shopir
+      volumes:
+        - ./services/postgresql/data:/bitnami/postgresql
+      labels:
+        - "traefik.enable=true"
+        - "traefik.tcp.routers.postgresql.rule=HostSNI(`*`)"
+        - "traefik.tcp.routers.postgresql.entryPoints=postgresql"
+        - "traefik.tcp.routers.postgresql.service=postgresql"
+        # services (needed for TCP)
+        - "traefik.tcp.services.postgresql.loadbalancer.server.port=5432"
+        # doing https
+        - "traefik.http.routers.postgresql.tls.certresolver=mydnschallenge"
+        - "traefik.http.routers.postgresql.tls.domains[0].main=postgres.shopir.app"
+        - "traefik.http.routers.postgresql.tls.domains[0].sans=db.postgres.shopir.app"
+
+  redis:
+      image: bitnami/redis:latest
+      restart: always
+      environment:
+        REDIS_PASSWORD: shopir
+      volumes:
+        - ./services/redis/data:/bitnami/redis/data
+      labels:
+        - "traefik.enable=true"
+        - "traefik.tcp.routers.redis.rule=HostSNI(`*`)"
+        - "traefik.tcp.routers.redis.entryPoints=redis"
+        - "traefik.tcp.routers.redis.service=redis"
+        # services (needed for TCP)
+        - "traefik.tcp.services.redis.loadbalancer.server.port=6379"
+        # doing https
+        - "traefik.http.routers.redis.tls.certresolver=mydnschallenge"
+        - "traefik.http.routers.redis.tls.domains[0].main=redis.shopir.app"
+        - "traefik.http.routers.redis.tls.domains[0].sans=redis.redis.shopir.app"
